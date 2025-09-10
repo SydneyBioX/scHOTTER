@@ -1,0 +1,182 @@
+---
+title: "scHOTTER: Method Overview"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{scHOTTER: Method Overview}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, message = FALSE, warning = FALSE, comment = "#>")
+library(usethis)
+library(devtools)
+load_all()
+set.seed(1)
+```
+
+# Introduction
+
+scHOTTER provides a light-weight, fully transparent workflow to test for spatially heterogeneous gene–gene co-expression using kernel-wise local Fisher $z$ correlations, an analytic null for the sample variance of these $z$’s, and standard-normal $z$-scores → one-sided $p$-values. This method offers a parametric alternative to the permutation-testing-based framework, with the advantages of greater sensitivity to signal and computational speed. Although this method is purpose-built for application to spatial single-cell data, capabilities to suit analysis of developmental trajectory data have been included as well.
+
+This vignette mirrors the style of the scHOT vignette (Bioconductor) (Ghazanfar et al., 2020) and walks through 1) An example analysis and end-to-end workflow breakdown for differential correlation across the mouse olfactory bulb (MOB), 2) optional inspection / plotting helpers, and 3) An example analysis and end-to-end workflow breakdown for differential correlation along liver trajectory. Both of these datasets are built into the scHOT package. 
+
+```{r}
+library(scHOT)
+library(scHOTTER)
+library(Matrix)
+library(RANN)
+library(methods)
+library(stats)
+```
+
+# Spatial differential correlation in Mouse Olfactory Bulb
+
+As in the scHOT vignette, a subset of the genes from the Spatial Transcriptomics MOB data, specifically 43 highly variable genes (HVGs) that aren't significantly differentially across space, are tested for spatial heterogeneity in co-expression.
+
+```{r}
+data("MOB_subset")
+sce_MOB_subset <- MOB_subset$sce_MOB_subset
+
+sce_MOB_subset
+```
+
+The `SingleCellExperiment` object has the expression logcounts in the `logcounts` attribute of the `data` slot of the `assays` slot, while the spatial coordinates are in the `rownames` slot of the `colData` slot. The gene names are the row names of the `SingleCellExperiment` object.
+
+```{r}
+logcounts <- sce_MOB_subset@assays@data$logcounts
+logcounts <- t(logcounts)
+
+all_coords_raw <- sce_MOB_subset@colData@rownames
+
+all_genes_raw <- rownames(sce_MOB_subset)
+
+rownames(logcounts) <- all_coords_raw
+colnames(logcounts) <- all_genes_raw
+
+head(logcounts, 5)
+```
+
+Now with this `logcounts` matrix we are set up to perform testing, once we extract the coordinates and store these separately.
+
+```{r}
+coords_char <- rownames(logcounts)
+coord_list <- strsplit(coords_char, "x")
+coord_matrix <- do.call(rbind, coord_list)
+coords <- apply(coord_matrix, 2, as.numeric)
+```
+
+## Perform scHOTTER step by step - skip ahead for wrapper using `scHOTTER_pipeline`
+
+Given that we only have 43 genes, testing for all possible gene pairs is no issue computationally, requiring around 0.3 seconds on one core. Therefore, no subsetting of `logcounts` is required, and we can immediately begin with generating the centres of kernels.
+
+```{r}
+
+```
+
+
+# Quick Start 
+
+We’ll simulate coordinates in the row names and random gene expression. The pipeline expects row names like "x_y" (or "x,y", "x y") and gene names as columns.
+
+```{r}
+# Simulate a small dataset
+n <- 120
+coords <- cbind(runif(n, 0, 10), runif(n, 0, 5))
+rownms <- apply(coords, 1, function(v) sprintf("%.3f_%.3f", v[1], v[2]))
+expr <- cbind(g1 = rnorm(n), g2 = rnorm(n), g3 = rnorm(n), g4 = rnorm(n))
+rownames(expr) <- rownms
+
+# Run the full pipeline (gaussian kernels; Fisher transform on)
+out <- scHOTTER_pipeline(expr, span = 0.2, kernel_type = "gaussian")
+
+# Results: p-values per gene pair
+head(out$summary)
+```
+
+The summary tibble lists each gene pair with its sample variance `s2` (the raw test statistic), standardized statistic `z`, and one-sided upper-tail `p`.
+
+# Detailed Workflow
+
+Below we expose the same steps the pipeline runs internally. Each function is exported and documented.
+
+## 1) Coordinates, kernel centres, and weights
+
+
+
+```{r}
+# 1a) Parse coordinates from rownames
+coords_parsed <- out$intermediates$coords   # or re-parse via internal helper
+
+# 1b) Choose kernel centres based on point density
+centres <- generate_kernel_centres_by_density(coords_parsed, span = 0.2)
+
+# 1c) Build a point × kernel weight matrix (block or gaussian)
+W0 <- generate_weight_matrix_euclidean(coords_parsed, centres, span = 0.2, type = "gaussian")
+dim(W0); Matrix::nnzero(W0)
+```
+
+## 2) Identify and drop "light" kernels
+
+```{r}
+Memb   <- generate_membership_matrix(W0)
+ovl    <- determine_overlaps(Memb)
+light  <- find_light_kernels(ovl, Memb)
+W      <- trim_weight_matrix(W0, light)
+
+c(before = ncol(W0), after = ncol(W))
+```
+
+## 3) Local Fisher correlations and their sample variance
+
+```{r}
+Z  <- get_local_correlation_matrix(expr, W, fisher_transform = TRUE)
+s2 <- compute_var_of_local_corrs(Z)
+head(s2)
+```
+
+## 4) Null modelling: $\mathbb{E}[S^2]$, $\mathrm{Var}(S^2)$
+
+```{r}
+neff  <- get_effective_sample_sizes(W)
+corr  <- approximate_between_coefficient_correlations_effective(W)  # unattenuated overlap corr
+Sigma <- get_sigma_matrix(corr, neff)
+
+mu    <- approximate_expectation_effective(Sigma)
+varS2 <- approximate_variance_effective(Sigma)
+c(E_S2 = mu, Var_S2 = varS2)
+```
+
+## 5) Standardise and get $p$-values
+
+```{r}
+z <- compute_test_statistics_standardised_effective(varS2, mu, s2)
+p <- compute_p_values(z)
+
+head(sort(p))
+```
+
+# Optional: Inspect and visualise intermediates
+
+You can access everything via `out$intermediates` from `scHOTTER_pipeline()`, e.g.:
+
+```{r}
+names(out$intermediates)
+
+# Top pairs by z-score
+head(out$summary[order(-out$summary$z), ], 10)
+```
+
+Simple heatmap of kernel-wise Fisher $z$ for the strongest pair:
+
+```{r}
+best <- out$summary$pair[which.max(out$summary$z)]
+zmat <- Z[, best, drop = FALSE]
+image(zmat, main = paste("Local Fisher z:", best), xlab = "Pair", ylab = "Kernel index")
+```
+
+# Reproducibility
+
+```{r}
+sessionInfo()
+```
