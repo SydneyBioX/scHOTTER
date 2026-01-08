@@ -50,21 +50,26 @@ generate_kernel_centres_by_density <- function(coords, span = NULL){
   target_n <- ceiling(span * n_points)
 
   bounds <- apply(coords, 2, range)
-  area <- prod(bounds[2, ] - bounds[1, ])
-  if (area <= 0) stop("Degenerate bounds (zero area). Check coords.")
-  density <- n_points / area
+  dims <- ncol(coords)
+  total_area <- prod(bounds[2, ] - bounds[1, ])
+  if (total_area <= 0) stop("Degenerate bounds (zero total area). Check coords.")
+  density <- n_points / total_area
   approx_kernel_area <- target_n / density
   kernel_side <- sqrt(approx_kernel_area)
 
-  x_range <- bounds[, 1]
-  y_range <- bounds[, 2]
-  n_x <- max(1L, ceiling((x_range[2] - x_range[1]) / kernel_side))
-  n_y <- max(1L, ceiling((y_range[2] - y_range[1]) / kernel_side))
+  ranges <- lapply(seq_len(dims), function(i) bounds[,i])
 
-  grid_x <- seq(x_range[1], x_range[2], length.out = n_x)
-  grid_y <- seq(y_range[1], y_range[2], length.out = n_y)
+  n_per_dim <- c()
+  for(i in 1:dims){
+    n_per_dim[i] <- max(1L,
+                    ceiling((ranges[[i]][2]-ranges[[i]][1])/kernel_side)
+    )}
 
-  centres <- as.matrix(expand.grid(x = grid_x, y = grid_y))
+  grids <- list()
+  for(i in 1:dims){grids[[i]] <- seq(ranges[[i]][1], ranges[[i]][2],
+                                     length.out = n_per_dim[i])}
+
+  centres <- as.matrix(expand.grid(grids))
   storage.mode(centres) <- "double"
   centres
 }

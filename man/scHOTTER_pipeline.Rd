@@ -44,7 +44,7 @@ A list with:
 }
 }
 \description{
-Takes a gene expression matrix whose \strong{rownames encode 2D coordinates}
+Takes a gene expression matrix whose \strong{rownames encode coordinates}
 (e.g. "12.3x45.6", "12.3_45.6", "12.3,45.6", or "12.3 45.6") and returns one-sided
 upper-tail p-values for the standardized sample-variance statistic of
 kernel-wise Fisher z correlations, \emph{plus} all intermediate objects.

@@ -12,11 +12,11 @@ generate_weight_matrix_euclidean(
 )
 }
 \arguments{
-\item{coords}{Numeric matrix or data frame with two columns \code{c(x, y)} giving
-point coordinates (rows are points).}
+\item{coords}{Numeric matrix or data frame giving point
+coordinates (rows are points).}
 
-\item{grid_centres}{Numeric matrix or data frame with two columns \code{c(x, y)}
-giving kernel-centre coordinates (e.g., from
+\item{grid_centres}{Numeric matrix or data frame giving kernel-centre
+coordinates (e.g., from
 \code{\link{generate_kernel_centres_by_density}}).}
 
 \item{span}{Optional numeric in \eqn{(0, 1]}. Target proportion of points to associate

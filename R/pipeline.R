@@ -1,6 +1,6 @@
 #' End-to-end pipeline: local co-expression p-values (stores intermediates)
 #'
-#' Takes a gene expression matrix whose \strong{rownames encode 2D coordinates}
+#' Takes a gene expression matrix whose \strong{rownames encode coordinates}
 #' (e.g. "12.3x45.6", "12.3_45.6", "12.3,45.6", or "12.3 45.6") and returns one-sided
 #' upper-tail p-values for the standardized sample-variance statistic of
 #' kernel-wise Fisher z correlations, \emph{plus} all intermediate objects.
@@ -56,8 +56,8 @@ scHOTTER_pipeline <- function(expr,
     stop("expr must have rownames encoding coordinates like 'x_y' or 'x,y'.")
 
   coords <- .parse_coords_from_rownames(rownames(expr))
-  if (!is.matrix(coords) || ncol(coords) != 2 || any(!is.finite(coords))) {
-    stop("Failed to parse numeric 2D coordinates from rownames(expr). ",
+  if (!is.matrix(coords) || any(!is.finite(coords))) {
+    stop("Failed to parse numeric coordinates from rownames(expr). ",
          "Expected formats include 'x_y', 'x,y', or 'x y'.")
   }
 
@@ -160,9 +160,7 @@ scHOTTER_pipeline <- function(expr,
   parts <- strsplit(rn, "[,_;[:space:]x]+", perl = TRUE)
   # keep only rows that split into at least 2 tokens; take first two
   xy <- t(vapply(parts, function(p) {
-    if (length(p) < 2) return(c(NA_real_, NA_real_))
-    c(as.numeric(p[1]), as.numeric(p[2]))
-  }, numeric(2)))
-  colnames(xy) <- c("x", "y")
+    as.numeric(p)
+  }, numeric(length(parts[[1]]))))
   xy
 }

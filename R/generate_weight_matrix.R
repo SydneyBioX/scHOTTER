@@ -10,10 +10,10 @@
 #'         and \eqn{d} is the distance from the kernel centre to the point of interest.
 #' }
 #'
-#' @param coords Numeric matrix or data frame with two columns \code{c(x, y)} giving
-#'   point coordinates (rows are points).
-#' @param grid_centres Numeric matrix or data frame with two columns \code{c(x, y)}
-#'   giving kernel-centre coordinates (e.g., from
+#' @param coords Numeric matrix or data frame giving point
+#' coordinates (rows are points).
+#' @param grid_centres Numeric matrix or data frame giving kernel-centre
+#' coordinates (e.g., from
 #'   \code{\link{generate_kernel_centres_by_density}}).
 #' @param span Optional numeric in \eqn{(0, 1]}. Target proportion of points to associate
 #'   with each kernel (used to choose \code{k = ceiling(span * n_points)} neighbors).
@@ -52,14 +52,15 @@ generate_weight_matrix_euclidean <- function(coords, grid_centres,
   # Coerce & validate inputs
   if (is.data.frame(coords)) coords <- as.matrix(coords)
   if (is.data.frame(grid_centres)) grid_centres <- as.matrix(grid_centres)
-  if (!is.matrix(coords) || ncol(coords) != 2) {
-    stop("coords must be a numeric matrix/data.frame with 2 columns (x, y).")
+  if (!is.matrix(coords)) {
+    stop("coords must be a numeric matrix/data.frame")
   }
-  if (!is.matrix(grid_centres) || ncol(grid_centres) != 2) {
-    stop("grid_centres must be a numeric matrix/data.frame with 2 columns (x, y).")
+  if (!is.matrix(grid_centres)) {
+    stop("grid_centres must be a numeric matrix/data.frame")
   }
   n_points  <- nrow(coords)
   n_kernels <- nrow(grid_centres)
+  dims <- ncol(grid_centres)
   if (n_points < 1L || n_kernels < 1L) stop("Need at least 1 point and 1 kernel centre.")
 
   # Default span
@@ -73,12 +74,15 @@ generate_weight_matrix_euclidean <- function(coords, grid_centres,
   }
   target_n <- ceiling(span * n_points)
 
-  # Robust grid spacing (gap): smallest positive spacing in x/y of centres
-  ux <- sort(unique(grid_centres[, 1]))
-  uy <- sort(unique(grid_centres[, 2]))
-  dx <- if (length(ux) >= 2) min(diff(ux)) else diff(range(coords[, 1])) / max(1, sqrt(n_kernels))
-  dy <- if (length(uy) >= 2) min(diff(uy)) else diff(range(coords[, 2])) / max(1, sqrt(n_kernels))
-  gap <- min(dx, dy)
+  # Robust grid spacing (gap): smallest positive spacing between centres
+  sort_unique <- function(x){sort(unique(x))}
+  u_centres <- apply(grid_centres, 2, sort_unique)
+  d <- c()
+  for(i in 1:dims){
+    d[i] <- if(length(u_centres[[i]]) >= 2) min(diff(u_centres[[i]])) else diff(range(coords[, i])) / max(1, sqrt(n_kernels))
+  }
+  gap <- min(d)
+
   if (!is.finite(gap) || gap <= 0) stop("Could not determine a positive grid spacing (gap).")
 
   # k-NN (optionally radius-restricted) from centres -> points
