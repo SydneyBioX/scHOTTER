@@ -5,3 +5,7 @@ The goal of scHOTTER is to facilitate a parametric test for spatially heterogene
 ## Installation
 
 You can install the development version of scHOTTER using `devtools::install_github("https://github.com/SydneyBioX/scHOTTER")`.
+
+## Manual
+
+The reference manual for the package and its functions can be read here: `https://drive.google.com/file/d/1NQf2klQr6ilZB-n9FwL3jrIo_qK1j6Tt/view?usp=sharing`.
