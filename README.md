@@ -8,4 +8,4 @@ You can install the development version of scHOTTER using `devtools::install_git
 
 ## Manual
 
-The reference manual for the package and its functions can be read [here] (https://drive.google.com/file/d/1NQf2klQr6ilZB-n9FwL3jrIo_qK1j6Tt/view?usp=sharing).
+The reference manual for the package and its functions can be read [here](https://drive.google.com/file/d/1NQf2klQr6ilZB-n9FwL3jrIo_qK1j6Tt/view?usp=sharing).
